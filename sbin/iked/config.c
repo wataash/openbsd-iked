@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -39,7 +40,7 @@
 #include "ikev2.h"
 
 struct iked_sa *
-config_new_sa(struct iked *env, int initiator)
+config_new_sa(struct iked *env, bool initiator)
 {
 	struct iked_sa	*sa;
 
@@ -451,7 +452,7 @@ config_new_user(struct iked *env, struct iked_user *new)
  */
 
 int
-config_setcoupled(struct iked *env, unsigned int couple)
+config_setcoupled(struct iked *env, bool couple)
 {
 	unsigned int	 type;
 
@@ -465,11 +466,11 @@ int
 config_getcoupled(struct iked *env, unsigned int type)
 {
 	return (pfkey_couple(env->sc_pfkey, &env->sc_sas,
-	    type == IMSG_CTL_COUPLE ? 1 : 0));
+	    type == IMSG_CTL_COUPLE));
 }
 
 int
-config_setmode(struct iked *env, unsigned int passive)
+config_setmode(struct iked *env, bool passive)
 {
 	unsigned int	 type;
 
@@ -482,17 +483,17 @@ config_setmode(struct iked *env, unsigned int passive)
 int
 config_getmode(struct iked *env, unsigned int type)
 {
-	uint8_t		 old;
+	bool		 old;
 	unsigned char	*mode[] = { "active", "passive" };
 
-	old = env->sc_passive ? 1 : 0;
-	env->sc_passive = type == IMSG_CTL_PASSIVE ? 1 : 0;
+	old = env->sc_passive;
+	env->sc_passive = (type == IMSG_CTL_PASSIVE);
 
 	if (old == env->sc_passive)
 		return (0);
 
 	log_debug("%s: mode %s -> %s", __func__,
-	    mode[old], mode[env->sc_passive]);
+	    mode[old ? 1 : 0], mode[env->sc_passive ? 1 : 0]);
 
 	return (0);
 }
@@ -848,22 +849,22 @@ config_getcompile(struct iked *env, struct imsg *imsg)
 int
 config_setmobike(struct iked *env)
 {
-	unsigned int boolval;
+	bool val;
 
-	boolval = env->sc_mobike;
+	val = env->sc_mobike;
 	proc_compose(&env->sc_ps, PROC_IKEV2, IMSG_CTL_MOBIKE,
-	    &boolval, sizeof(boolval));
+	    &val, sizeof(val));
 	return (0);
 }
 
 int
 config_getmobike(struct iked *env, struct imsg *imsg)
 {
-	unsigned int boolval;
+	bool mobike;
 
-	IMSG_SIZE_CHECK(imsg, &boolval);
-	memcpy(&boolval, imsg->data, sizeof(boolval));
-	env->sc_mobike = boolval;
+	IMSG_SIZE_CHECK(imsg, &mobike);
+	memcpy(&mobike, imsg->data, sizeof(mobike));
+	env->sc_mobike = mobike;
 	log_debug("%s: %smobike", __func__, env->sc_mobike ? "" : "no ");
 	return (0);
 }
@@ -871,22 +872,22 @@ config_getmobike(struct iked *env, struct imsg *imsg)
 int
 config_setfragmentation(struct iked *env)
 {
-	unsigned int boolval;
+	bool fragmentation;
 
-	boolval = env->sc_frag;
+	fragmentation = env->sc_frag;
 	proc_compose(&env->sc_ps, PROC_IKEV2, IMSG_CTL_FRAGMENTATION,
-	    &boolval, sizeof(boolval));
+	    &fragmentation, sizeof(fragmentation));
 	return (0);
 }
 
 int
 config_getfragmentation(struct iked *env, struct imsg *imsg)
 {
-	unsigned int boolval;
+	bool fragmentation;
 
-	IMSG_SIZE_CHECK(imsg, &boolval);
-	memcpy(&boolval, imsg->data, sizeof(boolval));
-	env->sc_frag = boolval;
+	IMSG_SIZE_CHECK(imsg, &fragmentation);
+	memcpy(&fragmentation, imsg->data, sizeof(fragmentation));
+	env->sc_frag = fragmentation;
 	log_debug("%s: %sfragmentation", __func__, env->sc_frag ? "" : "no ");
 	return (0);
 }

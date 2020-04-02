@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -81,7 +82,7 @@ ikev2_msg_cb(int fd, short event, void *arg)
 	    env->sc_nattport) {
 		if (memcmp(&natt, buf, sizeof(natt)) != 0)
 			return;
-		msg.msg_natt = 1;
+		msg.msg_natt = true;
 		off = sizeof(natt);
 	} else
 		off = 0;
@@ -135,17 +136,17 @@ ikev1_recv(struct iked *env, struct iked_message *msg)
 struct ibuf *
 ikev2_msg_init(struct iked *env, struct iked_message *msg,
     struct sockaddr_storage *peer, socklen_t peerlen,
-    struct sockaddr_storage *local, socklen_t locallen, int response)
+    struct sockaddr_storage *local, socklen_t locallen, bool response)
 {
 	bzero(msg, sizeof(*msg));
 	memcpy(&msg->msg_peer, peer, peerlen);
 	msg->msg_peerlen = peerlen;
 	memcpy(&msg->msg_local, local, locallen);
 	msg->msg_locallen = locallen;
-	msg->msg_response = response ? 1 : 0;
+	msg->msg_response = response;
 	msg->msg_fd = -1;
 	msg->msg_data = ibuf_static();
-	msg->msg_e = 0;
+	msg->msg_e = false;
 	msg->msg_parent = msg;	/* has to be set */
 	TAILQ_INIT(&msg->msg_proposals);
 
@@ -782,7 +783,7 @@ done:
 }
 
 struct ibuf *
-ikev2_msg_auth(struct iked *env, struct iked_sa *sa, int response)
+ikev2_msg_auth(struct iked *env, struct iked_sa *sa, bool response)
 {
 	struct ibuf		*authmsg = NULL, *nonce, *prfkey, *buf;
 	uint8_t			*ptr;
@@ -1025,7 +1026,7 @@ ikev2_msg_frompeer(struct iked_message *msg)
 }
 
 struct iked_socket *
-ikev2_msg_getsocket(struct iked *env, int af, int natt)
+ikev2_msg_getsocket(struct iked *env, int af, bool natt)
 {
 	switch (af) {
 	case AF_INET:

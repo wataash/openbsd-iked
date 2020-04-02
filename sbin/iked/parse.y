@@ -43,6 +43,7 @@
 #include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,10 +104,10 @@ char		*symget(const char *);
 static struct iked	*env = NULL;
 static int		 debug = 0;
 static int		 rules = 0;
-static int		 passive = 0;
-static int		 decouple = 0;
-static int		 mobike = 1;
-static int		 fragmentation = 0;
+static bool		 passive = false;
+static bool		 decouple = false;
+static bool		 mobike = true;
+static bool		 fragmentation = false;
 static char		*ocsp_url = NULL;
 
 struct ipsec_xf {
@@ -467,14 +468,14 @@ include		: INCLUDE STRING		{
 		}
 		;
 
-set		: SET ACTIVE	{ passive = 0; }
-		| SET PASSIVE	{ passive = 1; }
-		| SET COUPLE	{ decouple = 0; }
-		| SET DECOUPLE	{ decouple = 1; }
-		| SET FRAGMENTATION	{ fragmentation = 1; }
-		| SET NOFRAGMENTATION	{ fragmentation = 0; }
-		| SET MOBIKE	{ mobike = 1; }
-		| SET NOMOBIKE	{ mobike = 0; }
+set		: SET ACTIVE	{ passive = false; }
+		| SET PASSIVE	{ passive = true; }
+		| SET COUPLE	{ decouple = false; }
+		| SET DECOUPLE	{ decouple = true; }
+		| SET FRAGMENTATION	{ fragmentation = true; }
+		| SET NOFRAGMENTATION	{ fragmentation = false; }
+		| SET MOBIKE	{ mobike = true; }
+		| SET NOMOBIKE	{ mobike = false; }
 		| SET OCSP STRING		{
 			if ((ocsp_url = strdup($3)) == NULL) {
 				yyerror("cannot set ocsp_url");
@@ -1653,20 +1654,20 @@ parse_config(const char *filename, struct iked *x_env)
 
 	free(ocsp_url);
 
-	mobike = 1;
-	fragmentation = 0;
-	decouple = passive = 0;
+	mobike = true;
+	fragmentation = false;
+	decouple = passive = false;
 	ocsp_url = NULL;
 
 	if (env->sc_opts & IKED_OPT_PASSIVE)
-		passive = 1;
+		passive = true;
 
 	yyparse();
 	errors = file->errors;
 	popfile();
 
-	env->sc_passive = passive ? 1 : 0;
-	env->sc_decoupled = decouple ? 1 : 0;
+	env->sc_passive = passive;
+	env->sc_decoupled = decouple;
 	env->sc_mobike = mobike;
 	env->sc_frag = fragmentation;
 	env->sc_ocsp_url = ocsp_url;

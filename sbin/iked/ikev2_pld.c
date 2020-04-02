@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -1038,7 +1039,7 @@ ikev2_pld_notify(struct iked *env, struct ikev2_payload *pld,
 		}
 		print_hex(md, 0, sizeof(md));
 		/* remember for MOBIKE */
-		msg->msg_parent->msg_natt_rcvd = 1;
+		msg->msg_parent->msg_natt_rcvd = true;
 		break;
 	case IKEV2_N_AUTHENTICATION_FAILED:
 		if (!msg->msg_e) {
@@ -1210,7 +1211,7 @@ ikev2_pld_notify(struct iked *env, struct ikev2_payload *pld,
 			    " notification: %zu", __func__, len);
 			return (0);
 		}
-		msg->msg_parent->msg_update_sa_addresses = 1;
+		msg->msg_parent->msg_update_sa_addresses = true;
 		break;
 	case IKEV2_N_COOKIE2:
 		if (!msg->msg_e) {
@@ -1371,7 +1372,7 @@ ikev2_pld_delete(struct iked *env, struct ikev2_payload *pld,
 			ret = ikev2_send_ike_e(env, sa, resp,
 			    IKEV2_PAYLOAD_NONE,
 			    IKEV2_EXCHANGE_INFORMATIONAL, 1);
-			msg->msg_parent->msg_responded = 1;
+			msg->msg_parent->msg_responded = true;
 			ibuf_release(resp);
 			ikev2_ikesa_recv_delete(env, sa);
 		} else {
@@ -1422,7 +1423,7 @@ ikev2_pld_delete(struct iked *env, struct ikev2_payload *pld,
 		}
 
 		if (ikev2_childsa_delete(env, sa, del.del_protoid, spi,
-		    &localspi[i], 0) == -1)
+		    &localspi[i], false) == -1)
 			failed++;
 		else
 			found++;
@@ -1478,7 +1479,7 @@ ikev2_pld_delete(struct iked *env, struct ikev2_payload *pld,
 	if (found) {
 		ret = ikev2_send_ike_e(env, sa, resp, IKEV2_PAYLOAD_DELETE,
 		    IKEV2_EXCHANGE_INFORMATIONAL, 1);
-		msg->msg_parent->msg_responded = 1;
+		msg->msg_parent->msg_responded = true;
 	} else {
 		/* XXX should we send an INVALID_SPI notification? */
 		ret = 0;
@@ -1752,7 +1753,7 @@ ikev2_frags_reassemble(struct iked *env, struct ikev2_payload *pld,
 	bzero(&emsg, sizeof(emsg));
 	memcpy(&emsg, msg, sizeof(*msg));
 	emsg.msg_data = e;
-	emsg.msg_e = 1;
+	emsg.msg_e = true;
 	emsg.msg_parent = msg;
 	TAILQ_INIT(&emsg.msg_proposals);
 
@@ -1793,9 +1794,9 @@ ikev2_pld_e(struct iked *env, struct ikev2_payload *pld,
 	if (ikev2_msg_frompeer(msg)) {
 		e = ikev2_msg_decrypt(env, msg->msg_sa, msg->msg_data, e);
 	} else {
-		sa->sa_hdr.sh_initiator = sa->sa_hdr.sh_initiator ? 0 : 1;
+		sa->sa_hdr.sh_initiator = !sa->sa_hdr.sh_initiator;
 		e = ikev2_msg_decrypt(env, msg->msg_sa, msg->msg_data, e);
-		sa->sa_hdr.sh_initiator = sa->sa_hdr.sh_initiator ? 0 : 1;
+		sa->sa_hdr.sh_initiator = !sa->sa_hdr.sh_initiator;
 	}
 
 	if (e == NULL)
@@ -1807,7 +1808,7 @@ ikev2_pld_e(struct iked *env, struct ikev2_payload *pld,
 	bzero(&emsg, sizeof(emsg));
 	memcpy(&emsg, msg, sizeof(*msg));
 	emsg.msg_data = e;
-	emsg.msg_e = 1;
+	emsg.msg_e = true;
 	emsg.msg_parent = msg;
 	TAILQ_INIT(&emsg.msg_proposals);
 

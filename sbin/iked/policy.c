@@ -22,6 +22,7 @@
 #include <sys/uio.h>
 #include <sys/tree.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -343,8 +344,8 @@ sa_stateok(struct iked_sa *sa, int state)
 }
 
 struct iked_sa *
-sa_new(struct iked *env, uint64_t ispi, uint64_t rspi,
-    unsigned int initiator, struct iked_policy *pol)
+sa_new(struct iked *env, uint64_t ispi, uint64_t rspi, bool initiator,
+    struct iked_policy *pol)
 {
 	struct iked_sa	*sa;
 	struct iked_sa	*old;
@@ -585,8 +586,7 @@ flow_free(struct iked_flow *flow)
 }
 
 struct iked_sa *
-sa_lookup(struct iked *env, uint64_t ispi, uint64_t rspi,
-    unsigned int initiator)
+sa_lookup(struct iked *env, uint64_t ispi, uint64_t rspi, bool initiator)
 {
 	struct iked_sa	*sa, key;
 

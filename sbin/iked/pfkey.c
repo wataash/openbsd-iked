@@ -29,6 +29,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <poll.h>
 #include <string.h>
@@ -49,7 +50,7 @@
 #define IKED_SADB_UPDATE_SA_ADDRESSES 0xff
 
 static uint32_t sadb_msg_seq = 0;
-static unsigned int sadb_decoupled = 0;
+static bool sadb_decoupled = false;
 
 static struct event pfkey_timer_ev;
 static struct timeval pfkey_timer_tv;
@@ -117,7 +118,7 @@ void	pfkey_timer_cb(int, short, void *);
 int	pfkey_process(struct iked *, struct pfkey_message *);
 
 int
-pfkey_couple(int sd, struct iked_sas *sas, int couple)
+pfkey_couple(int sd, struct iked_sas *sas, bool couple)
 {
 	struct iked_sa		*sa;
 	struct iked_flow	*flow;
@@ -132,10 +133,10 @@ pfkey_couple(int sd, struct iked_sas *sas, int couple)
 		return (0);
 
 	log_debug("%s: kernel %s -> %s", __func__,
-	    mode[sadb_decoupled], mode[!sadb_decoupled]);
+	    mode[sadb_decoupled ? 0 : 1], mode[sadb_decoupled ? 1 : 0]);
 
 	/* Allow writes to the PF_KEY socket */
-	sadb_decoupled = 0;
+	sadb_decoupled = false;
 
 	RB_FOREACH(sa, iked_sas, sas) {
 		TAILQ_FOREACH(csa, &sa->sa_childsas, csa_entry) {
@@ -1336,7 +1337,7 @@ pfkey_sa_add(int fd, struct iked_childsa *sa, struct iked_childsa *last)
 		}
 	}
 
-	sa->csa_loaded = 1;
+	sa->csa_loaded = true;
 	return (0);
 }
 
@@ -1372,7 +1373,7 @@ pfkey_sa_delete(int fd, struct iked_childsa *sa)
 	if (pfkey_sa(fd, satype, SADB_DELETE, sa) == -1)
 		return (-1);
 
-	sa->csa_loaded = 0;
+	sa->csa_loaded = false;
 	return (0);
 }
 

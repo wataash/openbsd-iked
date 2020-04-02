@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -261,10 +262,10 @@ parent_configure(struct iked *env)
 	config_setmobike(env);
 	config_setfragmentation(env);
 	config_setnattport(env);
-	config_setcoupled(env, env->sc_decoupled ? 0 : 1);
+	config_setcoupled(env, !env->sc_decoupled);
 	config_setocsp(env);
 	/* Must be last */
-	config_setmode(env, env->sc_passive ? 1 : 0);
+	config_setmode(env, env->sc_passive);
 
 	return (0);
 }
@@ -295,10 +296,10 @@ parent_reload(struct iked *env, int reset, const char *filename)
 		config_setmobike(env);
 		config_setfragmentation(env);
 		config_setnattport(env);
-		config_setcoupled(env, env->sc_decoupled ? 0 : 1);
+		config_setcoupled(env, !env->sc_decoupled);
 		config_setocsp(env);
  		/* Must be last */
-		config_setmode(env, env->sc_passive ? 1 : 0);
+		config_setmode(env, env->sc_passive);
 	} else {
 		config_setreset(env, reset, PROC_IKEV2);
 		config_setreset(env, reset, PROC_CERT);
@@ -309,7 +310,8 @@ void
 parent_sig_handler(int sig, short event, void *arg)
 {
 	struct privsep	*ps = arg;
-	int		 die = 0, status, fail, id;
+	bool		 die = false, fail;
+	int		 status, id;
 	pid_t		 pid;
 	char		*cause;
 
@@ -331,7 +333,7 @@ parent_sig_handler(int sig, short event, void *arg)
 		break;
 	case SIGTERM:
 	case SIGINT:
-		die = 1;
+		die = true;
 		/* FALLTHROUGH */
 	case SIGCHLD:
 		do {
@@ -341,14 +343,14 @@ parent_sig_handler(int sig, short event, void *arg)
 			if (pid <= 0)
 				continue;
 
-			fail = 0;
+			fail = false;
 			if (WIFSIGNALED(status)) {
-				fail = 1;
+				fail = true;
 				len = asprintf(&cause, "terminated; signal %d",
 				    WTERMSIG(status));
 			} else if (WIFEXITED(status)) {
 				if (WEXITSTATUS(status) != 0) {
-					fail = 1;
+					fail = true;
 					len = asprintf(&cause,
 					    "exited abnormally");
 				} else
@@ -359,7 +361,7 @@ parent_sig_handler(int sig, short event, void *arg)
 			if (len == -1)
 				fatal("asprintf");
 
-			die = 1;
+			die = true;
 
 			for (id = 0; id < PROC_MAX; id++)
 				if (pid == ps->ps_pid[id]) {

@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -505,7 +506,7 @@ dsa_new(uint16_t id, struct iked_hash *prf, int sign)
 		if (prf == NULL || prf->hash_priv == NULL)
 			fatalx("dsa_new: invalid PRF");
 		dsa.dsa_priv = prf->hash_priv;
-		dsa.dsa_hmac = 1;
+		dsa.dsa_hmac = true;
 		break;
 	case IKEV2_AUTH_DSS_SIG:
 		dsa.dsa_priv = EVP_dss1();
