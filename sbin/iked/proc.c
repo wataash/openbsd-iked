@@ -304,6 +304,9 @@ proc_shutdown(struct privsep_proc *p)
 void
 proc_sig_handler(int sig, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", sig, event, arg);
+#endif
 	struct privsep_proc	*p = arg;
 
 	switch (sig) {
@@ -346,8 +349,11 @@ proc_run(struct privsep *ps, struct privsep_proc *p,
 	case 0:
 		log_procinit(p->p_title);
 
+#ifdef NO_SETPGID
+#else /* NO_SETPGID */
 		/* Set the process group of the current process */
 		setpgid(0, 0);
+#endif /* NO_SETPGID */
 		break;
 	default:
 		return (pid);
@@ -369,22 +375,33 @@ proc_run(struct privsep *ps, struct privsep_proc *p,
 	else
 		root = pw->pw_dir;
 
+
+#ifdef DEBUG_INSECURE
+	if (chdir(root) == -1) // /etc/iked
+		fatal("proc_run: chdir");
+#else /* DEBUG_INSECURE */
 	if (chroot(root) == -1)
 		fatal("proc_run: chroot");
 	if (chdir("/") == -1)
 		fatal("proc_run: chdir(\"/\")");
+#endif /* DEBUG_INSECURE */
 
 	privsep_process = p->p_id;
 
 	setproctitle("%s", p->p_title);
 
+
+#ifdef DEBUG_INSECURE
+#else /* DEBUG_INSECURE */
 	if (setgroups(1, &pw->pw_gid) ||
 	    setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) ||
 	    setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid))
 		fatal("proc_run: cannot drop privileges");
+#endif /* DEBUG_INSECURE */
 
 	/* Fork child handlers */
 	for (n = 1; n < ps->ps_instances[p->p_id]; n++) {
+		log_warnx("NOTREACHED");
 		if (fork() == 0) {
 			ps->ps_instance = p->p_instance = n;
 			break;
@@ -436,6 +453,9 @@ proc_run(struct privsep *ps, struct privsep_proc *p,
 void
 proc_dispatch(int fd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_trace("[ev] %d %d %p", fd, event, arg);
+#endif
 	struct imsgev		*iev = arg;
 	struct privsep_proc	*p = iev->proc;
 	struct privsep		*ps = p->p_ps;

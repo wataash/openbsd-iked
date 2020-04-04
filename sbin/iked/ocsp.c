@@ -154,6 +154,9 @@ ocsp_connect(struct iked *env)
 void
 ocsp_connect_cb(int fd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", fd, event, arg);
+#endif
 	struct ocsp_connect	*oc = arg;
 	int			 error, send_fd = -1;
 	socklen_t		 len;
@@ -383,6 +386,9 @@ ocsp_load_certs(const char *file)
 void
 ocsp_callback(int fd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", fd, event, arg);
+#endif
 	struct iked_ocsp	*ocsp = arg;
 	struct iked_socket	*sock = ocsp->ocsp_sock;
 	OCSP_RESPONSE		*resp = NULL;

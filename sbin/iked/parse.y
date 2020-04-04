@@ -2002,8 +2002,12 @@ set_policy(char *idstr, int type, struct iked_policy *pol)
 	}
 
 	if ((key = find_pubkey(keyfile)) == NULL) {
+		// 19:10:37.834 17676 [WARN]    set_policy : could not find pubkey for /etc/iked/pubkeys/ipv4/172.16.100.11
+#if 0
 		log_warnx("%s: could not find pubkey for %s", __func__,
 		    keyfile);
+#else /* 0 */
+#endif /* 0 */
 	}
 
  done:

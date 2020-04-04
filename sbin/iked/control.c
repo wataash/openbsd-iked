@@ -156,6 +156,9 @@ control_listen(struct control_sock *cs)
 void
 control_accept(int listenfd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", listenfd, event, arg);
+#endif
 	struct control_sock	*cs = arg;
 	int			 connfd;
 	socklen_t		 len;
@@ -243,6 +246,9 @@ control_close(int fd, struct control_sock *cs)
 void
 control_dispatch_imsg(int fd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", fd, event, arg);
+#endif
 	struct control_sock	*cs = arg;
 	struct iked		*env = cs->cs_env;
 	struct ctl_conn		*c;

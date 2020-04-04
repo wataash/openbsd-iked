@@ -32,6 +32,16 @@
 #ifndef IKED_H
 #define IKED_H
 
+#include <sys/socket.h>
+#include <event.h>
+#include "../../wutils/wutils.cc"
+
+#ifdef DEBUG_INSECURE
+#define pledge(a, b) 0
+#else /* DEBUG_INSECURE */
+#endif /* DEBUG_INSECURE */
+
+
 /*
  * Common IKEv1/IKEv2 header
  */
@@ -1109,13 +1119,33 @@ void	log_info(const char *, ...)
 void	log_debug(const char *, ...)
 	    __attribute__((__format__ (printf, 1, 2)));
 void	logit(int, const char *, ...)
-	    __attribute__((__format__ (printf, 2, 3)));
+__attribute__((__format__ (printf, 2, 3)));
 void	vlog(int, const char *, va_list)
-	    __attribute__((__format__ (printf, 2, 0)));
+__attribute__((__format__ (printf, 2, 0)));
 __dead void fatal(const char *, ...)
-	    __attribute__((__format__ (printf, 1, 2)));
+__attribute__((__format__ (printf, 1, 2)));
 __dead void fatalx(const char *, ...)
-	    __attribute__((__format__ (printf, 1, 2)));
+__attribute__((__format__ (printf, 1, 2)));
+
+#ifdef DEBUG_LOG_PRETTY
+enum log_func {
+	LOG_FUNC_WARN,
+	LOG_FUNC_WARNX,
+	LOG_FUNC_INFO,
+	LOG_FUNC_DEBUG,
+	LOG_FUNC_TRACE,
+};
+__attribute__((__format__ (printf, 5, 6)))
+void	_mylog(enum log_func lfunc, const char *file, unsigned int line, const char *func, const char *format, ...);
+void	log_procinit_pretty(const char *);
+#define log_procinit(procname) log_procinit_pretty(procname)
+#define log_warn(format, ...) _mylog(LOG_FUNC_WARN, __FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define log_warnx(format, ...) _mylog(LOG_FUNC_WARNX, __FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define log_info(format, ...) _mylog(LOG_FUNC_INFO, __FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define log_debug(format, ...) _mylog(LOG_FUNC_DEBUG, __FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+// #define log_trace(format, ...) _mylog(LOG_FUNC_TRACE, __FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define log_trace(format, ...) do {} while (0)
+#endif /* DEBUG_LOG_PRETTY */
 
 /* ocsp.c */
 int	 ocsp_connect(struct iked *env);

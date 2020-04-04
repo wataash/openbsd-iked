@@ -66,6 +66,10 @@ timer_del(struct iked *env, struct iked_timer *tmr)
 void
 timer_callback(int fd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	fprintf(stderr, "\n");
+	log_info("[ev] %d %d %p", fd, event, arg);
+#endif
 	struct iked_timer	*tmr = arg;
 
 	if (tmr->tmr_cb)

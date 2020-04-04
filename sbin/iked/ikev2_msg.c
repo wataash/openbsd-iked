@@ -54,6 +54,10 @@ int	 ikev2_send_encrypted_fragments(struct iked *env, struct iked_sa *sa,
 void
 ikev2_msg_cb(int fd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	fprintf(stderr, "\n");
+	log_info("[ev] %d %d %p", fd, event, arg);
+#endif
 	struct iked_socket	*sock = arg;
 	struct iked		*env = sock->sock_env;
 	struct iked_message	 msg;

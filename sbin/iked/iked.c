@@ -37,6 +37,8 @@
 #include "iked.h"
 #include "ikev2.h"
 
+#include <inttypes.h>
+
 __dead void usage(void);
 
 void	 parent_shutdown(struct iked *);
@@ -119,6 +121,7 @@ main(int argc, char *argv[])
 			port = atoi(optarg);
 			natt_mode = NATT_FORCE;
 			break;
+			// TODO: strtol
 		default:
 			usage();
 		}
@@ -194,6 +197,8 @@ main(int argc, char *argv[])
 	if (parent_configure(env) == -1)
 		fatalx("configuration failed");
 
+	// udp fd moves to ikev2???
+	// system("fstat > /root/fstat.a");
 	event_dispatch();
 
 	log_debug("%d parent exiting", getpid());
@@ -313,6 +318,10 @@ parent_reload(struct iked *env, int reset, const char *filename)
 void
 parent_sig_handler(int sig, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", sig, event, arg);
+#endif
+
 	struct privsep	*ps = arg;
 	int		 die = 0, status, fail, id;
 	pid_t		 pid;

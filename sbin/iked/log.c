@@ -24,6 +24,16 @@
 #include <errno.h>
 #include <time.h>
 
+#ifdef DEBUG_LOG_PRETTY
+#include <unistd.h>
+#include "iked.h"
+#undef log_procinit
+#undef log_warn
+#undef log_warnx
+#undef log_info
+#undef log_debug
+#endif /* DEBUG_LOG_PRETTY */
+
 static int	 debug;
 static int	 verbose;
 const char	*log_procname;
@@ -216,3 +226,165 @@ fatalx(const char *emsg, ...)
 	va_end(ap);
 	exit(1);
 }
+
+#ifdef DEBUG_LOG_PRETTY
+
+static pid_t 		 static_pid;
+static unsigned int	 color256 = 143; // calculated for "parent"
+
+void
+log_procinit_pretty(const char *procname)
+{
+	log_procinit(procname);
+	if (procname != NULL)
+		log_procname = procname;
+	static_pid = getpid();
+	unsigned long hash_procname = w_hash(log_procname);
+	color256 = hash_procname % 256U;
+
+	// usleep(color256 * 1000); // 0-255 ms to avoid logging crashing
+
+	// avoid logging crashing
+	if (strcmp(procname, "parent") == 0)
+		usleep(0);
+	else if (strcmp(procname, "control") == 0)
+		usleep(100000); // 100ms
+	else if (strcmp(procname, "ca") == 0)
+		usleep(200000);
+	else if (strcmp(procname, "ikev2") == 0)
+		usleep(300000);
+	else
+		fatalx("unknown procname: %s", procname);
+
+	_mylog(LOG_FUNC_INFO, __FILE__, __LINE__, __func__, "initialized %s %u", log_procname, color256);
+}
+
+// has ("%s", __func__))
+static unsigned int
+has_s_func(const char *func, const char *format, va_list ap)
+{
+	if (strncmp(format, "%s", 2) != 0)
+		return 0;
+	const char *const s = va_arg(ap, const char *);
+	if (strcmp(s, func) != 0)
+		return 0;
+	return 1;
+}
+
+void
+_mylog(enum log_func lfunc, const char *file, unsigned int line, const char *func, const char *format, ...)
+{
+	// TODO: stderr -> string
+	// TODO: profiling
+
+	va_list ap;
+
+	// 15:04:05.000
+	{
+		char buf_time[20];
+		struct timespec ts_now;
+		clock_gettime(CLOCK_REALTIME, &ts_now);
+		struct tm tm_local;
+		localtime_r(&ts_now.tv_sec, &tm_local);
+		// 15:29.14.123
+		size_t todo = strftime(buf_time, sizeof(buf_time), "%T", &tm_local);
+		(void)todo;
+		// TODO: intmax_t? or uintmax_t?
+		// TODO: stderr -> buf
+		fprintf(stderr, "%s.%03jd", buf_time, (intmax_t)(ts_now.tv_nsec / 1000000));
+	}
+
+	// 15:04:05.000  2345
+	// 15:04:05.000 12345
+	//              ^^^^^ color by procname
+	fprintf(stderr, " \x1b[38;5;%um%5jd\x1b[0m", color256, (intmax_t)static_pid);
+
+	// 15:04:05.000 12345          pfkey_reply hdr.sadb_msg_len: 31
+	// 15:04:05.000 12345 [WARN] pfkey_process reached
+	//                    |-> color
+	//                    \___________________/ %20s
+	switch (lfunc) {
+	case LOG_FUNC_WARN:
+	case LOG_FUNC_WARNX:
+		// fprintf(stderr, " \x1b[33mWARN\x1b[0m");
+		// fprintf(stderr, " \x1b[33mWARN");
+		fprintf(stderr, " \x1b[33m[WARN]");
+		fprintf(stderr, "%14s", func);
+		break;
+	case LOG_FUNC_INFO:
+		// fprintf(stderr, " \x1b[34mINFO\x1b[0m");
+		// fprintf(stderr, " \x1b[34mINFO");
+		fprintf(stderr, " \x1b[34m");
+		fprintf(stderr, "%20s", func);
+		break;
+	case LOG_FUNC_DEBUG:
+	case LOG_FUNC_TRACE:
+		// fprintf(stderr, " \x1b[37mDEBU\x1b[0m");
+		// fprintf(stderr, " \x1b[37mDEBU");
+		fprintf(stderr, " \x1b[37m");
+		fprintf(stderr, "%20s", func);
+		break;
+	default:
+		/* NOTREACHED */
+		fprintf(stderr, " \x1b[31m[NOTREACHED]");
+		fprintf(stderr, "%8s", func);
+		break;
+	}
+
+	// 15:04:05.000 12345 INFO          func message 0
+	//
+	// remove explicit __func__
+	// ("%s: message %d", __func__, 0)
+	// -> (": message %d", 0)
+
+	va_start(ap, format);
+	unsigned int _has_s_func = has_s_func(func, format, ap);
+	va_end(ap);
+	if (_has_s_func) {
+		// format = sprintf3("%s %s", func, format);
+	}
+
+	char buf[10240];
+	const char *debug_vizualize_buf = buf;
+	(void)debug_vizualize_buf;
+
+	// loop_nolog();
+
+	{
+		va_start(ap, format);
+		if (_has_s_func) {
+			// remove __func__
+			const char *_func = va_arg(ap, const char *);
+			(void)_func;
+			format += 2; // remove %s
+		}
+		// int todo = vsnprintf_ss(buf, sizeof(buf), format, ap);
+		int todo = vsprintf(buf, format, ap);
+		(void)todo;
+		todo = 0; // breakpoint
+		(void)todo;
+	}
+	va_end(ap);
+
+	switch (lfunc) {
+	case LOG_FUNC_WARN:
+		log_warn(" %s", buf);
+		break;
+	case LOG_FUNC_WARNX:
+		log_warnx(" %s", buf);
+		break;
+	case LOG_FUNC_INFO:
+		log_info(" %s", buf);
+		break;
+	case LOG_FUNC_DEBUG:
+		log_debug(" %s", buf);
+		break;
+	default:
+		fatalx(" NOTREACHED lfunc:%d buf:%s", lfunc, buf);
+		break;
+	}
+
+	fprintf(stderr, "\x1b[0m");
+}
+
+#endif /* DEBUG_LOG_PRETTY */

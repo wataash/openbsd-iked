@@ -1527,6 +1527,9 @@ pfkey_find_ext(uint8_t *data, ssize_t len, int type)
 void
 pfkey_dispatch(int sd, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", sd, event, arg);
+#endif
 	struct iked		*env = (struct iked *)arg;
 	struct pfkey_message	 pm, *pmp;
 	struct sadb_msg		 hdr;
@@ -1578,6 +1581,9 @@ pfkey_dispatch(int sd, short event, void *arg)
 void
 pfkey_timer_cb(int unused, short event, void *arg)
 {
+#ifdef DEBUG_EVENT
+	log_info("[ev] %d %d %p", unused, event, arg);
+#endif
 	struct iked		*env = arg;
 	struct pfkey_message	*pm;
 
