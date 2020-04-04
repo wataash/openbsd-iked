@@ -1,0 +1,6 @@
+*.o
+/sbin/iked/eap_map.c
+/sbin/iked/iked
+/sbin/iked/ikev2_map.c
+/sbin/iked/parse.c
+/usr.sbin/ikectl/ikectl
