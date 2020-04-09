@@ -1028,7 +1028,7 @@ ikev2_init_ike_sa(struct iked *env, void *arg)
 
 		log_debug("%s: initiating \"%s\"", __func__, pol->pol_name);
 
-		if (ikev2_init_ike_sa_peer(env, pol, &pol->pol_peer, NULL))
+		if (ikev2_init_ike_sa_peer(env, pol, &pol->pol_peer, NULL) == -1)
 			log_debug("%s: failed to initiate with peer %s",
 			    __func__,
 			    print_host((struct sockaddr *)&pol->pol_peer.addr,
