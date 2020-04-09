@@ -109,6 +109,66 @@ int	 ikev2_validate_eap(struct iked_message *, size_t, size_t,
 int	 ikev2_pld_eap(struct iked *, struct ikev2_payload *,
 	    struct iked_message *, size_t, size_t);
 
+struct ibuf *
+pld_delete_alloc(uint8_t saproto)
+{
+	struct ibuf		*buf;
+	struct ikev2_delete	*del;
+
+	if ((buf = ibuf_static()) == NULL)
+		goto bad;
+	if ((del = ibuf_advance(buf, sizeof(*del))) == NULL)
+		goto bad;
+
+	del->del_protoid = saproto;
+	switch(saproto) {
+	case IKEV2_SAPROTO_IKE:
+		del->del_spisize = 0;
+		break;
+	case IKEV2_SAPROTO_ESP:
+	case IKEV2_SAPROTO_AH:
+		del->del_spisize = 4;
+		break;
+	default:
+		errno = EINVAL;
+		goto bad;
+	}
+	del->del_nspi = htobe16(0);
+
+	return (buf);
+
+bad:
+	log_warn("%s", __func__);
+	ibuf_release(buf);
+	return (NULL);
+}
+
+int
+pld_delete_push_spi(struct ibuf *buf, uint32_t spi)
+{
+	struct ikev2_delete	*del;
+
+	if (buf == NULL)
+		return (-1);
+	if ((del = ibuf_seek(buf, 0, sizeof(*del))) == NULL) {
+		log_warnx("%s: buf not allocated", __func__);
+		return (-1);
+	}
+	if (del->del_spisize != 4) {
+		log_warnx("%s invalid del_spisize: %"PRIu8, __func__,
+		    del->del_spisize);
+		return (-1);
+	}
+	spi = htobe32(spi);
+	if (ibuf_add(buf, &spi, sizeof(spi)) == -1) {
+		log_warn("%s", __func__);
+		return (-1);
+	}
+	del->del_nspi = htobe16(betoh16(del->del_nspi) + 1);
+
+	return (0);
+}
+
 int
 ikev2_pld_parse(struct iked *env, struct ike_header *hdr,
     struct iked_message *msg, size_t offset)
@@ -1455,6 +1515,7 @@ ikev2_pld_delete(struct iked *env, struct ikev2_payload *pld,
 		goto done;
 
 	if (found) {
+		// TODO: del here
 		if ((localdel = ibuf_advance(resp, sizeof(*localdel))) == NULL)
 			goto done;
 

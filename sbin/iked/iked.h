@@ -972,6 +972,10 @@ int	 ikev2_msg_lookup_retransmit_all(struct iked *env,
 int	 ikev2_pld_parse(struct iked *, struct ike_header *,
 	    struct iked_message *, size_t);
 
+struct ibuf *
+	 pld_delete_alloc(uint8_t saproto);
+int	 pld_delete_push_spi(struct ibuf *buf, uint32_t spi);
+
 /* eap.c */
 ssize_t	 eap_identity_request(struct ibuf *);
 int	 eap_parse(struct iked *, struct iked_sa *, void *, int);

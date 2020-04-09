@@ -3620,10 +3620,8 @@ ikev2_init_create_child_sa(struct iked *env, struct iked_message *msg)
 	struct iked_sa			*sa = msg->msg_sa;
 	struct iked_sa			*nsa, *dsa;
 	struct iked_spi			*spi;
-	struct ikev2_delete		*del;
 	struct ibuf			*buf = NULL;
 	struct ibuf			*ni, *nr;
-	uint32_t			 spi32;
 	int				 pfs = 0, ret = -1;
 
 	if (!ikev2_msg_frompeer(msg) ||
@@ -3787,19 +3785,9 @@ ikev2_init_create_child_sa(struct iked *env, struct iked_message *msg)
 
 	if (csa) {
 		/* Child SA rekeying */
-
-		if ((buf = ibuf_static()) == NULL)
+		if ((buf = pld_delete_alloc(prop->prop_protoid)) == NULL)
 			goto done;
-
-		if ((del = ibuf_advance(buf, sizeof(*del))) == NULL)
-			goto done;
-
-		del->del_protoid = prop->prop_protoid;
-		del->del_spisize = sizeof(spi32);
-		del->del_nspi = htobe16(1);
-
-		spi32 = htobe32(csa->csa_spi.spi);
-		if (ibuf_add(buf, &spi32, sizeof(spi32)))
+		if (pld_delete_push_spi(buf, csa->csa_spi.spi) == -1)
 			goto done;
 
 		if (ikev2_send_ike_e(env, sa, buf, IKEV2_PAYLOAD_DELETE,
@@ -3951,20 +3939,14 @@ void
 ikev2_ikesa_delete(struct iked *env, struct iked_sa *sa, int initiator)
 {
 	struct ibuf			*buf = NULL;
-	struct ikev2_delete		*del;
 
 	if (initiator) {
 		/* XXX: Can not have simultaneous INFORMATIONAL exchanges */
 		if (sa->sa_stateflags & IKED_REQ_INF)
 			goto done;
 		/* Send PAYLOAD_DELETE */
-		if ((buf = ibuf_static()) == NULL)
+		if ((buf = pld_delete_alloc(IKEV2_SAPROTO_IKE)) == NULL)
 			goto done;
-		if ((del = ibuf_advance(buf, sizeof(*del))) == NULL)
-			goto done;
-		del->del_protoid = IKEV2_SAPROTO_IKE;
-		del->del_spisize = 0;
-		del->del_nspi = 0;
 		if (ikev2_send_ike_e(env, sa, buf, IKEV2_PAYLOAD_DELETE,
 		    IKEV2_EXCHANGE_INFORMATIONAL, 0) == -1)
 			goto done;
@@ -5249,38 +5231,24 @@ ikev2_childsa_delete_proposed(struct iked *env, struct iked_sa *sa,
 	struct ibuf			*buf = NULL;
 	struct iked_proposal		*prop;
 	struct ikev2_delete		*del;
-	uint32_t			 spi32;
 	uint8_t				 protoid = 0;
-	int				 ret = -1, count;
+	int				 ret = -1, count = 0;
 
 	if (!sa_stateok(sa, IKEV2_STATE_VALID))
 		return (-1);
 
-	count = 0;
+	/* XXX we assume all have the same protoid */
+	if ((buf = pld_delete_alloc(protoid)) == NULL)
+		goto done;
 	TAILQ_FOREACH(prop, proposals, prop_entry) {
 		if (ikev2_valid_proposal(prop, NULL, NULL, NULL) != 0)
 			continue;
-		protoid = prop->prop_protoid;
+		if (pld_delete_push_spi(buf, prop->prop_localspi.spi) == -1)
+			goto done;
 		count++;
 	}
 	if (count == 0)
-		return (0);
-	if ((buf = ibuf_static()) == NULL)
-		return (-1);
-	if ((del = ibuf_advance(buf, sizeof(*del))) == NULL)
 		goto done;
-	/* XXX we assume all have the same protoid */
-	del->del_protoid = protoid;
-	del->del_spisize = 4;
-	del->del_nspi = htobe16(count);
-
-	TAILQ_FOREACH(prop, proposals, prop_entry) {
-		if (ikev2_valid_proposal(prop, NULL, NULL, NULL) != 0)
-			continue;
-		spi32 = htobe32(prop->prop_localspi.spi);
-		if (ibuf_add(buf, &spi32, sizeof(spi32)))
-			goto done;
-	}
 
 	if (ikev2_send_ike_e(env, sa, buf, IKEV2_PAYLOAD_DELETE,
 	    IKEV2_EXCHANGE_INFORMATIONAL, 0) == -1)
@@ -5969,7 +5937,6 @@ ikev2_drop_sa(struct iked *env, struct iked_spi *drop)
 	struct ibuf			*buf = NULL;
 	struct iked_childsa		*csa, key;
 	struct iked_sa			*sa;
-	struct ikev2_delete		*del;
 	uint32_t			 spi32;
 	int				 acquired;
 
@@ -6006,18 +5973,9 @@ ikev2_drop_sa(struct iked *env, struct iked_spi *drop)
 
 	/* Send PAYLOAD_DELETE */
 
-	if ((buf = ibuf_static()) == NULL)
+	if ((buf = pld_delete_alloc(drop->spi_protoid)) == NULL)
 		return (0);
-	if ((del = ibuf_advance(buf, sizeof(*del))) == NULL)
-		goto done;
-	del->del_protoid = drop->spi_protoid;
-	del->del_spisize = 4;
-	del->del_nspi = htobe16(1);
-	if (ibuf_add(buf, &spi32, sizeof(spi32)))
-		goto done;
-
-	if (ikev2_send_ike_e(env, sa, buf, IKEV2_PAYLOAD_DELETE,
-	    IKEV2_EXCHANGE_INFORMATIONAL, 0) == -1)
+	if (pld_delete_push_spi(buf, spi32) == -1)
 		goto done;
 
 	sa->sa_stateflags |= IKED_REQ_INF;
