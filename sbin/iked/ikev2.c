@@ -5230,7 +5230,7 @@ ikev2_childsa_delete_proposed(struct iked *env, struct iked_sa *sa,
 {
 	struct ibuf			*buf = NULL;
 	struct iked_proposal		*prop;
-	struct ikev2_delete		*del;
+	// struct ikev2_delete		*del;
 	uint8_t				 protoid = 0;
 	int				 ret = -1, count = 0;
 

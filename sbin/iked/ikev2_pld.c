@@ -155,8 +155,8 @@ pld_delete_push_spi(struct ibuf *buf, uint32_t spi)
 		return (-1);
 	}
 	if (del->del_spisize != 4) {
-		log_warnx("%s invalid del_spisize: %"PRIu8, __func__,
-		    del->del_spisize);
+		// log_warnx("%s invalid del_spisize: %" PRIu8, __func__,
+		//     del->del_spisize);
 		return (-1);
 	}
 	spi = htobe32(spi);
